@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tOS16.2 开发计划甘特图</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #ffffff; color: #1a202c; min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #f0faf0 0%, #e8f5e8 100%); padding: 20px 28px 16px; border-bottom: 1px solid #c6e0c6; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #1a202c; letter-spacing: 0.5px; }
+  .header p  { font-size: 12px; color: #718096; margin-top: 4px; }
+
+  .filter-bar { display: flex; gap: 8px; padding: 12px 28px; flex-wrap: wrap; background: #f7fafc; border-bottom: 1px solid #e2e8f0; align-items: center; }
+  .filter-bar span { font-size: 11px; color: #718096; margin-right: 4px; }
+  .filter-btn { padding: 4px 12px; border-radius: 20px; border: 1px solid #cbd5e0; background: #fff; color: #4a5568; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+  .filter-btn:hover { border-color: #38a169; color: #38a169; }
+  .filter-btn.active { background: #38a169; border-color: #38a169; color: #fff; }
+
+  .chart-wrap { padding: 20px 28px 60px; overflow-x: auto; background: #fff; }
+  .chart { min-width: 1000px; position: relative; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4a5568; }
+  .legend-diamond { width: 9px; height: 9px; border-radius: 2px; transform: rotate(45deg); flex-shrink: 0; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .grid-header { display: flex; margin-bottom: 0; }
+  .row-label-area { flex-shrink: 0; width: 220px; }
+  .axis-area { flex: 1; position: relative; }
+
+  /* Month axis */
+  .month-axis { height: 22px; position: relative; border-bottom: 1px solid #e2e8f0; }
+  .month-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #e2e8f0; }
+  .month-tick-label { font-size: 10px; color: #a0aec0; padding: 4px 4px; white-space: nowrap; }
+  .year-tick { border-left: 2px solid #a0aec0 !important; }
+  .year-tick .month-tick-label { color: #4a5568; font-weight: 600; }
+
+  /* STR axis */
+  .str-axis { height: 30px; position: relative; border-bottom: 2px solid #e2e8f0; margin-bottom: 6px; }
+  .str-marker { position: absolute; top: 0; height: 100%; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); z-index: 5; }
+  .str-marker-line { width: 1px; height: 100%; border-left: 2px dashed; opacity: 0.7; }
+  .str-marker-label { font-size: 10px; font-weight: 700; white-space: nowrap; padding: 2px 5px; border-radius: 4px; margin-top: 2px; }
+
+  .gantt-rows { position: relative; }
+
+  /* Group header */
+  .group-header { display: flex; align-items: center; margin: 12px 0 2px; }
+  .group-header-label { width: 220px; flex-shrink: 0; font-size: 11px; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.8px; padding: 4px 8px; }
+  .group-header-line { flex: 1; height: 1px; background: #e2e8f0; }
+
+  .gantt-row { display: flex; align-items: center; margin-bottom: 2px; transition: opacity 0.2s; }
+  .gantt-row.hidden { opacity: 0; height: 0; margin: 0; overflow: hidden; pointer-events: none; }
+  .gantt-row.version-row { margin-bottom: 6px; }
+
+  .row-label { width: 220px; flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; }
+  .row-label-main { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .row-label-name { font-size: 12px; font-weight: 600; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-label-sub  { font-size: 10px; color: #a0aec0; }
+  .platform-badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
+  .badge-mtk  { background: #ebf8ff; color: #2b6cb0; }
+  .badge-q    { background: #faf5ff; color: #6b46c1; }
+  .badge-ver  { background: #f0fff4; color: #276749; }
+  .badge-plan { background: #f0fff4; color: #276749; font-style: italic; }
+  .badge-act  { background: #fffaf0; color: #c05621; }
+
+  .row-bar { flex: 1; position: relative; height: 32px; }
+
+  .ms-dot     { position: absolute; top: 50%; transform: translate(-50%,-50%); border-radius: 50%; cursor: pointer; z-index: 10; transition: transform 0.15s; }
+  .ms-dot:hover { transform: translate(-50%,-50%) scale(1.45); }
+  .ms-diamond { position: absolute; top: 50%; transform: translate(-50%,-50%) rotate(45deg); border-radius: 2px; cursor: pointer; z-index: 10; transition: transform 0.15s; }
+  .ms-diamond:hover { transform: translate(-50%,-50%) rotate(45deg) scale(1.4); }
+  .ms-connector { position: absolute; top: 50%; height: 2px; transform: translateY(-50%); z-index: 5; border-radius: 1px; }
+  .ms-label { position: absolute; top: 18px; font-size: 9px; white-space: nowrap; transform: translateX(-50%); z-index: 15; pointer-events: none; font-weight: 600; }
+  .str-guide { position: absolute; top: 0; bottom: 0; width: 1px; border-left: 1px dashed; opacity: 0.2; z-index: 2; pointer-events: none; }
+
+  /* Pending rows (未确定硬件) */
+  .pending-row .row-label-name { color: #a0aec0; font-style: italic; }
+  .pending-badge { font-size: 9px; padding: 1px 6px; border-radius: 3px; background: #fefcbf; color: #b7791f; font-weight: 600; flex-shrink: 0; }
+
+  /* Summary cards */
+  .summary-cards { display: flex; gap: 10px; padding: 12px 28px; flex-wrap: wrap; background: #f7fafc; border-bottom: 1px solid #e2e8f0; align-items: center; }
+  .sum-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .sum-card-label { font-size: 10px; color: #a0aec0; }
+  .sum-card-date  { font-size: 13px; font-weight: 700; }
+
+  #tooltip { position: fixed; background: rgba(255,255,255,0.98); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #2d3748; pointer-events: none; z-index: 9999; display: none; max-width: 260px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); line-height: 1.7; }
+  #tooltip b { color: #2b6cb0; }
+  #tooltip .tip-date { color: #276749; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>tOS16.2 开发计划甘特图</h1>
+  <p>计划 V1.1 基准 · 13台机型（含待定）· 8个里程碑阶段</p>
+</div>
+
+<div class="summary-cards" id="summaryCards"></div>
+
+<div class="filter-bar">
+  <span>筛选：</span>
+  <button class="filter-btn active" data-filter="all">全部</button>
+  <button class="filter-btn" data-filter="版本计划">版本计划</button>
+  <button class="filter-btn" data-filter="首发">首发</button>
+  <button class="filter-btn" data-filter="衍生">衍生</button>
+  <button class="filter-btn" data-filter="MTK">MTK</button>
+  <button class="filter-btn" data-filter="Q">高通</button>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart" id="chart">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-diamond" style="background:#68d391"></div>阶段里程碑（菱形）</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fbd38d"></div>STR5 最终评审</div>
+      <div class="legend-item"><div style="width:24px;height:1px;border-top:2px dashed #4a5568"></div>计划V1.1基准</div>
+      <div class="legend-item"><div style="width:12px;height:3px;background:#e53e3e;border-radius:2px"></div>今日</div>
+    </div>
+    <div id="ganttContent"></div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ─── Plan V1.1 baseline ────────────────────────────────────────────
+const PLAN = {
+  start:  '2025-08-29',
+  STR1:   '2025-09-12',
+  STR2:   '2025-09-28',
+  STR3:   '2025-10-24',
+  kickoff:'2025-10-27',
+  STR4:   '2025-11-21',
+  STR4A:  '2026-01-06',
+  STR5:   '2026-03-02'
+};
+
+const ACTUAL = {
+  start:  '2025-08-29',
+  STR1:   '2025-09-12',
+  STR2:   '2025-09-28',
+  STR3:   '2025-11-05',
+  kickoff: null,
+  STR4:   null,
+  STR4A:  '2026-01-14',
+  STR5:   '2026-03-09'
+};
+
+const MS_KEYS   = ['start','STR1','STR2','STR3','kickoff','STR4','STR4A','STR5'];
+const MS_LABELS = ['开始','STR1','STR2','STR3','Kick off','STR4','STR4A','STR5'];
+const MS_COLORS = {
+  start:  '#68d391',
+  STR1:   '#63b3ed',
+  STR2:   '#76e4f7',
+  STR3:   '#f6ad55',
+  kickoff:'#d6bcfa',
+  STR4:   '#fc8181',
+  STR4A:  '#f687b3',
+  STR5:   '#fbd38d'
+};
+const STR_AXIS_KEYS = ['STR1','STR2','STR3','STR4','STR4A','STR5'];
+const STR_COLORS = {STR1:'#63b3ed',STR2:'#76e4f7',STR3:'#f6ad55',STR4:'#fc8181',STR4A:'#f687b3',STR5:'#fbd38d'};
+
+// ─── Rows ──────────────────────────────────────────────────────────
+const rows = [
+  // 版本计划
+  { group:'版本计划', model:'tOS16.2', sub:'计划 V1.1', platform:'VER', type:'version', planType:'plan',
+    ms: PLAN },
+  { group:'版本计划', model:'tOS16.2', sub:'实际', platform:'VER', type:'version', planType:'actual',
+    ms: ACTUAL },
+
+  // 首发
+  { group:'首发', model:'NOTE60-X6877', sub:'D8400核', platform:'MTK', type:'normal', chips:'',
+    ms: { start:'2025-03-31', STR1:'2025-04-29', STR2:'2025-07-15', STR3:'2025-07-15', kickoff:null, STR4:'2025-11-21', STR4A:'2026-01-06', STR5:'2026-03-02' }
+  },
+  { group:'首发', model:'SPARK-KN4/KN4n', sub:'G81', platform:'MTK', type:'normal', chips:'',
+    ms: { start:null, STR1:null, STR2:null, STR3:null, kickoff:null, STR4:null, STR4A:'2026-01-15', STR5:'2026-03-13' }
+  },
+  { group:'首发', model:'SPARK 50 5G-KN8', sub:'D6400 · 省略计划', platform:'MTK', type:'normal', chips:'',
+    ms: { start:'2025-08-15', STR1:'2025-09-24', STR2:'2025-09-30', STR3:'2025-10-28', kickoff:null, STR4:'2025-12-09', STR4A:'2026-01-21', STR5:'2026-03-03' }
+  },
+  { group:'首发', model:'传音 70-X6895', sub:'G100 · tOS16.2 slim', platform:'MTK', type:'normal', chips:'',
+    ms: { start:'2025-08-19', STR1:null, STR2:null, STR3:'2025-11-05', kickoff:null, STR4:'2025-12-01', STR4A:'2026-01-29', STR5:'2026-03-16' }
+  },
+  { group:'首发', model:'传音 70-X6895B', sub:'G100 · tOS16.2 full', platform:'MTK', type:'normal', chips:'',
+    ms: { start:'2025-08-19', STR1:null, STR2:null, STR3:'2025-10-24', kickoff:null, STR4:'2025-12-01', STR4A:'2026-01-27', STR5:'2026-03-13' }
+  },
+  { group:'首发', model:'XPAD 30-X1103', sub:'G100', platform:'MTK', type:'normal', chips:'',
+    ms: { start:'2025-10-09', STR1:'2025-11-03', STR2:'2025-11-17', STR3:'2025-11-23', kickoff:null, STR4:'2025-12-24', STR4A:'2026-03-02', STR5:'2026-03-30' }
+  },
+
+  // 衍生
+  { group:'衍生', model:'SPARK 50-KN5', sub:'G100', platform:'MTK', type:'normal', chips:'',
+    ms: { start:'2025-08-12', STR1:'2025-10-30', STR2:'2025-10-30', STR3:'2025-10-30', kickoff:null, STR4:'2025-12-01', STR4A:'2026-02-06', STR5:'2026-03-20' }
+  },
+  { group:'衍生', model:'HOT 70 5G-X6896', sub:'25Ms · 预计10月底', platform:'Q', type:'pending', chips:'',
+    ms: { start:'2025-08-27', STR1:null, STR2:null, STR3:null, kickoff:null, STR4:null, STR4A:null, STR5:null }
+  },
+  { group:'衍生', model:'HOT 70 Pro-X6897', sub:'G100', platform:'MTK', type:'normal', chips:'',
+    ms: { start:'2025-07-15', STR1:null, STR2:null, STR3:'2025-10-24', kickoff:null, STR4:'2025-12-23', STR4A:'2026-03-12', STR5:'2026-04-23' }
+  },
+  { group:'衍生', model:'HOT 70 Pro+5G-X6898', sub:'25Ms', platform:'Q', type:'normal', chips:'',
+    ms: { start:'2025-08-05', STR1:null, STR2:null, STR3:'2025-09-05', kickoff:null, STR4:'2025-11-14', STR4A:'2026-01-28', STR5:'2026-03-19' }
+  },
+  { group:'衍生', model:'POVA 8 5G-LK7', sub:'25Ms', platform:'Q', type:'normal', chips:'',
+    ms: { start:'2025-07-22', STR1:null, STR2:null, STR3:'2025-10-27', kickoff:null, STR4:'2025-11-26', STR4A:'2026-01-26', STR5:'2026-03-17' }
+  },
+  { group:'衍生', model:'POVA 8 5G-LK6', sub:'25Ms', platform:'Q', type:'normal', chips:'',
+    ms: { start:'2025-08-28', STR1:null, STR2:null, STR3:'2025-11-12', kickoff:'2025-11-07', STR4:'2025-12-25', STR4A:'2026-03-13', STR5:'2026-04-27' }
+  },
+  { group:'衍生', model:'SMART 20 5G-X6842', sub:'D6400 · 未确定硬件', platform:'MTK', type:'nodates', chips:'',
+    ms: {}
+  },
+  { group:'衍生', model:'SMART 20 Plus-X6843', sub:'D6400 · 未确定硬件', platform:'MTK', type:'nodates', chips:'',
+    ms: {}
+  },
+  { group:'衍生', model:'CITY 200 5G', sub:'D6400 · 未确定硬件', platform:'MTK', type:'nodates', chips:'',
+    ms: {}
+  },
+  { group:'衍生', model:'MEGAPAD 2-T1103', sub:'G100', platform:'MTK', type:'normal', chips:'',
+    ms: { start:'2025-09-30', STR1:'2025-11-11', STR2:'2025-11-21', STR3:'2025-11-28', kickoff:null, STR4:'2026-01-15', STR4A:'2025-03-17', STR5:'2025-05-07' }
+  },
+];
+
+// ─── Time range ───────────────────────────────────────────────────
+const allDates = [];
+rows.forEach(r => {
+  MS_KEYS.forEach(k => { if(r.ms && r.ms[k]) allDates.push(new Date(r.ms[k])); });
+});
+Object.values(PLAN).forEach(d => { if(d) allDates.push(new Date(d)); });
+allDates.push(new Date());
+
+let tMin = new Date(Math.min(...allDates));
+let tMax = new Date(Math.max(...allDates));
+tMin = new Date(tMin.getFullYear(), tMin.getMonth() - 1, 1);
+tMax = new Date(tMax.getFullYear(), tMax.getMonth() + 2, 1);
+const tSpan = tMax - tMin;
+
+function pctNum(dateStr) {
+  if(!dateStr) return null;
+  return (new Date(dateStr) - tMin) / tSpan * 100;
+}
+function pct(dateStr) {
+  const n = pctNum(dateStr);
+  return n === null ? null : n.toFixed(3) + '%';
+}
+
+// ─── Summary cards ────────────────────────────────────────────────
+const cards = document.getElementById('summaryCards');
+const lbl = document.createElement('div');
+lbl.style.cssText = 'font-size:11px;color:#718096;align-self:center;margin-right:4px;';
+lbl.textContent = '计划V1.1基准：';
+cards.appendChild(lbl);
+STR_AXIS_KEYS.forEach(k => {
+  const c = document.createElement('div');
+  c.className = 'sum-card';
+  c.innerHTML = `<div class="sum-card-label">${k}</div><div class="sum-card-date" style="color:${STR_COLORS[k]}">${PLAN[k]||'—'}</div>`;
+  cards.appendChild(c);
+});
+
+// ─── Build chart ──────────────────────────────────────────────────
+const content = document.getElementById('ganttContent');
+
+const headerDiv = document.createElement('div');
+headerDiv.className = 'grid-header';
+headerDiv.innerHTML = `
+  <div class="row-label-area"></div>
+  <div class="axis-area">
+    <div class="month-axis" id="monthAxis"></div>
+    <div class="str-axis" id="strAxis"></div>
+  </div>`;
+content.appendChild(headerDiv);
+
+// Month axis
+const monthAxis = document.getElementById('monthAxis');
+let cur = new Date(tMin);
+while(cur < tMax) {
+  const p = pct(cur.toISOString().slice(0,10));
+  const isJan = cur.getMonth() === 0;
+  const tick = document.createElement('div');
+  tick.className = 'month-tick' + (isJan ? ' year-tick' : '');
+  tick.style.left = p;
+  const label = document.createElement('div');
+  label.className = 'month-tick-label';
+  label.textContent = isJan ? `${cur.getFullYear()}年` : `${cur.getMonth()+1}月`;
+  tick.appendChild(label);
+  monthAxis.appendChild(tick);
+  cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+}
+
+// STR axis
+const strAxis = document.getElementById('strAxis');
+STR_AXIS_KEYS.forEach(key => {
+  const date = PLAN[key];
+  if(!date) return;
+  const p = pct(date);
+  const marker = document.createElement('div');
+  marker.className = 'str-marker';
+  marker.style.left = p;
+  const line = document.createElement('div');
+  line.className = 'str-marker-line';
+  line.style.borderColor = STR_COLORS[key];
+  const lbl2 = document.createElement('div');
+  lbl2.className = 'str-marker-label';
+  lbl2.style.cssText = `color:${STR_COLORS[key]};background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.08);`;
+  const d = new Date(date);
+  lbl2.textContent = `${key} ${d.getMonth()+1}/${d.getDate()}`;
+  marker.appendChild(line);
+  marker.appendChild(lbl2);
+  strAxis.appendChild(marker);
+});
+
+// Today in month axis
+const todayNum = pctNum(new Date().toISOString().slice(0,10));
+if(todayNum > 0 && todayNum < 100) {
+  const ta = document.createElement('div');
+  ta.style.cssText = `position:absolute;left:${todayNum}%;top:0;bottom:0;width:2px;background:#e53e3e;z-index:20;opacity:0.8;`;
+  monthAxis.appendChild(ta);
+  const tl2 = document.createElement('div');
+  tl2.style.cssText = `position:absolute;left:${todayNum}%;bottom:2px;font-size:9px;color:#e53e3e;font-weight:700;white-space:nowrap;transform:translateX(-50%);z-index:25;background:rgba(255,255,255,0.9);padding:0 2px;border-radius:2px;`;
+  tl2.textContent = '今日';
+  monthAxis.appendChild(tl2);
+}
+
+// Rows
+const rowsDiv = document.createElement('div');
+rowsDiv.className = 'gantt-rows';
+content.appendChild(rowsDiv);
+
+let lastGroup = '';
+rows.forEach(r => {
+  if(r.group !== lastGroup) {
+    lastGroup = r.group;
+    const gh = document.createElement('div');
+    gh.className = 'group-header';
+    gh.dataset.group = r.group;
+    gh.innerHTML = `<div class="group-header-label">${r.group}</div><div class="group-header-line"></div>`;
+    rowsDiv.appendChild(gh);
+  }
+
+  const rowDiv = document.createElement('div');
+  rowDiv.className = 'gantt-row' + (r.type==='version' ? ' version-row' : '') + (r.type==='nodates' ? ' pending-row' : '');
+  rowDiv.dataset.group  = r.group;
+  rowDiv.dataset.platform = r.platform;
+
+  const isVersion  = r.type === 'version';
+  const isPlan     = r.planType === 'plan';
+  const isActual   = r.planType === 'actual';
+  const isNoDates  = r.type === 'nodates';
+  const isPending  = r.type === 'pending';
+
+  // Badge
+  let badgeHtml = '';
+  if(isVersion && isPlan)    badgeHtml = `<span class="platform-badge badge-plan">计划</span>`;
+  else if(isVersion && isActual) badgeHtml = `<span class="platform-badge badge-act">实际</span>`;
+  else if(r.platform === 'MTK') badgeHtml = `<span class="platform-badge badge-mtk">MTK</span>`;
+  else if(r.platform === 'Q')   badgeHtml = `<span class="platform-badge badge-q">高通</span>`;
+
+  let noteBadge = '';
+  if(isPending) noteBadge = `<span class="pending-badge">待定</span>`;
+  if(isNoDates) noteBadge = `<span class="pending-badge">待确认</span>`;
+
+  rowDiv.innerHTML = `
+    <div class="row-label">
+      <div class="row-label-main">
+        <div class="row-label-name">${r.model}</div>
+        ${r.sub ? `<div class="row-label-sub">${r.sub}</div>` : ''}
+      </div>
+      ${badgeHtml}${noteBadge}
+    </div>`;
+
+  const barDiv = document.createElement('div');
+  barDiv.className = 'row-bar';
+
+  const color = r.platform === 'MTK' ? '#63b3ed'
+              : r.platform === 'Q'   ? '#b794f4'
+              : isActual             ? '#f6ad55'
+              : '#68d391';  // version plan = green
+
+  if(isNoDates || isPending) {
+    // Show placeholder text
+    const note = document.createElement('div');
+    note.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;padding:0 12px;';
+    note.innerHTML = `<span style="font-size:11px;color:#a0aec0;font-style:italic;">${isPending ? '预计10月底确认' : '未确认硬件，暂无排期'}</span>`;
+    barDiv.appendChild(note);
+  } else {
+    // STR guide lines
+    STR_AXIS_KEYS.forEach(key => {
+      const date = PLAN[key];
+      if(!date) return;
+      const g = document.createElement('div');
+      g.className = 'str-guide';
+      g.style.left = pctNum(date) + '%';
+      g.style.borderColor = STR_COLORS[key];
+      barDiv.appendChild(g);
+    });
+
+    // Plan V1.1 dashed baseline (only for hardware rows)
+    if(!isVersion) {
+      const pp1 = pctNum(PLAN.STR1);
+      const pp2 = pctNum(PLAN.STR5);
+      if(pp1 && pp2) {
+        const pl = document.createElement('div');
+        pl.style.cssText = `position:absolute;left:${pp1}%;width:${pp2-pp1}%;top:50%;height:1px;transform:translateY(-50%);border-top:2px dashed #cbd5e0;opacity:0.9;z-index:1;pointer-events:none;`;
+        barDiv.appendChild(pl);
+      }
+    }
+
+    // Connector line
+    const validPts = MS_KEYS.filter(k => r.ms[k]).map(k => pctNum(r.ms[k])).filter(n => n!==null);
+    if(validPts.length >= 2) {
+      const p1 = Math.min(...validPts);
+      const p2 = Math.max(...validPts);
+      const conn = document.createElement('div');
+      conn.className = 'ms-connector';
+      conn.style.left  = p1 + '%';
+      conn.style.width = (p2-p1) + '%';
+      conn.style.background = color;
+      conn.style.opacity = isVersion ? '0.5' : '0.25';
+      barDiv.appendChild(conn);
+    }
+
+    // Milestones
+    MS_KEYS.forEach((key, idx) => {
+      const date = r.ms[key];
+      if(!date) return;
+      const p = pctNum(date);
+      const mcolor = MS_COLORS[key];
+      const isSTR5 = key === 'STR5';
+      const d = new Date(date);
+      const shortDate = `${d.getMonth()+1}/${d.getDate()}`;
+
+      if(isSTR5) {
+        const dot = document.createElement('div');
+        dot.className = 'ms-dot';
+        dot.style.cssText = `left:${p}%;width:13px;height:13px;background:${mcolor};border:2px solid rgba(255,255,255,0.35);`;
+        dot.onmouseenter = e => showTip(e, `<b>${r.model}</b><br>${r.sub||''}<br>${MS_LABELS[idx]}：<span class="tip-date">${date}</span>`);
+        dot.onmouseleave = hideTip;
+        barDiv.appendChild(dot);
+      } else {
+        const dot = document.createElement('div');
+        dot.className = 'ms-diamond';
+        dot.style.cssText = `left:${p}%;width:10px;height:10px;background:${mcolor};`;
+        dot.onmouseenter = e => showTip(e, `<b>${r.model}</b><br>${r.sub||''}<br>${MS_LABELS[idx]}：<span class="tip-date">${date}</span>`);
+        dot.onmouseleave = hideTip;
+        barDiv.appendChild(dot);
+      }
+
+      // Date label
+      const lbl3 = document.createElement('div');
+      lbl3.className = 'ms-label';
+      lbl3.style.cssText = `left:${p}%;color:${mcolor};`;
+      lbl3.textContent = shortDate;
+      barDiv.appendChild(lbl3);
+    });
+  }
+
+  // Today line in bar
+  if(todayNum > 0 && todayNum < 100) {
+    const t = document.createElement('div');
+    t.style.cssText = `position:absolute;left:${todayNum}%;top:0;bottom:0;width:2px;background:#e53e3e;opacity:0.45;z-index:20;pointer-events:none;`;
+    barDiv.appendChild(t);
+  }
+
+  rowDiv.appendChild(barDiv);
+  rowsDiv.appendChild(rowDiv);
+});
+
+// ─── Filter ───────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    const f = this.dataset.filter;
+    document.querySelectorAll('.gantt-row').forEach(row => {
+      const g = row.dataset.group;
+      const p = row.dataset.platform;
+      const show = f==='all' || g===f || p===f;
+      row.classList.toggle('hidden', !show);
+    });
+    document.querySelectorAll('.group-header').forEach(gh => {
+      const g = gh.dataset.group;
+      const anyVisible = [...document.querySelectorAll(`.gantt-row[data-group="${g}"]`)].some(r => !r.classList.contains('hidden'));
+      gh.style.display = anyVisible ? 'flex' : 'none';
+    });
+  });
+});
+
+// ─── Tooltip ──────────────────────────────────────────────────────
+const tip = document.getElementById('tooltip');
+function showTip(e, html) { tip.innerHTML = html; tip.style.display = 'block'; moveTip(e); }
+function moveTip(e) {
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if(x + 260 > window.innerWidth)  x = e.clientX - 270;
+  if(y + 100 > window.innerHeight) y = e.clientY - 100;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+document.addEventListener('mousemove', e => { if(tip.style.display!=='none') moveTip(e); });
+</script>
+</body>
+</html>

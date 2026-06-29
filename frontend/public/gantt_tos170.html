@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tOS 版本测试甘特图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background: #f0f2f5;
+    color: #333;
+    padding: 20px;
+  }
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #3949ab 100%);
+    color: #fff;
+    padding: 20px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .header h1 { font-size: 22px; font-weight: 600; }
+  .header .subtitle { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+  .header .date-badge {
+    background: rgba(255,255,255,0.15);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    backdrop-filter: blur(4px);
+  }
+  .legend {
+    display: flex;
+    gap: 20px;
+    padding: 12px 30px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #555;
+  }
+  .legend-color {
+    width: 24px;
+    height: 12px;
+    border-radius: 3px;
+  }
+  .legend-milestone {
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border: 2px solid #333;
+    transform: rotate(45deg);
+    border-radius: 2px;
+  }
+  .legend-today {
+    width: 3px;
+    height: 16px;
+    background: #e53935;
+    border-radius: 2px;
+  }
+  .gantt-wrap {
+    overflow-x: auto;
+    padding: 0;
+  }
+  .gantt {
+    min-width: 1200px;
+    padding: 20px 30px 30px;
+  }
+  /* Timeline header */
+  .timeline-header {
+    display: flex;
+    position: relative;
+    margin-left: 180px;
+    height: 36px;
+    border-bottom: 2px solid #e0e0e0;
+  }
+  .month-cell {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    font-weight: 600;
+    border-right: 1px solid #eee;
+    padding-top: 8px;
+    position: relative;
+  }
+  .month-cell:last-child { border-right: none; }
+  .month-cell .days {
+    font-size: 10px;
+    font-weight: 400;
+    color: #aaa;
+    margin-top: 2px;
+  }
+  /* Grid lines */
+  .grid-lines {
+    position: absolute;
+    top: 0;
+    left: 180px;
+    right: 30px;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .grid-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #f0f0f0;
+  }
+  /* Project rows */
+  .project-row {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    border-bottom: 1px solid #f0f0f0;
+    position: relative;
+  }
+  .project-row:hover { background: #fafbfc; }
+  .project-label {
+    width: 180px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    flex-shrink: 0;
+    z-index: 2;
+  }
+  .project-label .tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+    font-weight: 500;
+  }
+  .tag-mtk { background: #e3f2fd; color: #1565c0; }
+  .tag-q { background: #fce4ec; color: #c62828; }
+  .tag-first { background: #fff3e0; color: #e65100; }
+  .tag-plan { background: #f3e5f5; color: #6a1b9a; }
+  .tag-sr { background: #e8f5e9; color: #2e7d32; }
+  .timeline-bar-area {
+    flex: 1;
+    position: relative;
+    height: 100%;
+    margin-left: 0;
+  }
+  /* Bars */
+  .bar {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 26px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #fff;
+    font-weight: 600;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 1;
+  }
+  .bar:hover {
+    opacity: 0.85;
+    transform: translateY(-50%) scale(1.02);
+    z-index: 5;
+  }
+  .bar-concept { background: linear-gradient(135deg, #42a5f5, #1e88e5); }
+  .bar-plan { background: linear-gradient(135deg, #66bb6a, #43a047); }
+  .bar-dev { background: linear-gradient(135deg, #ffa726, #f57c00); }
+  .bar-gap { background: linear-gradient(135deg, #bdbdbd, #9e9e9e); opacity: 0.6; }
+  .bar-plan-v1 { background: repeating-linear-gradient(45deg, #ce93d8, #ce93d8 6px, #ba68c8 6px, #ba68c8 12px); border: 1px dashed #8e24aa; }
+  /* Milestone markers */
+  .milestone {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border: 2px solid #333;
+    border-radius: 2px;
+    z-index: 3;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .milestone:hover {
+    transform: translate(-50%, -50%) rotate(45deg) scale(1.4);
+    z-index: 6;
+  }
+  .milestone-concept { border-color: #1565c0; background: #bbdefb; }
+  .milestone-plan { border-color: #2e7d32; background: #c8e6c9; }
+  .milestone-dev { border-color: #e65100; background: #ffe0b2; }
+  /* Today line */
+  .today-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e53935;
+    z-index: 4;
+    pointer-events: none;
+  }
+  .today-line::after {
+    content: '今天';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #e53935;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  /* Tooltip */
+  .tooltip {
+    position: fixed;
+    background: rgba(33,33,33,0.95);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    max-width: 280px;
+    line-height: 1.6;
+  }
+  /* Stats footer */
+  .stats {
+    display: flex;
+    gap: 16px;
+    padding: 16px 30px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1;
+    min-width: 160px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .stat-card .label { font-size: 11px; color: #999; margin-bottom: 4px; }
+  .stat-card .value { font-size: 18px; font-weight: 700; color: #333; }
+  .stat-card .value .unit { font-size: 12px; font-weight: 400; color: #999; margin-left: 2px; }
+  /* Phase group labels */
+  .phase-groups {
+    display: flex;
+    margin-left: 180px;
+    margin-bottom: 4px;
+    position: relative;
+  }
+  .phase-group-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    padding: 4px 0;
+    border-bottom: 1px solid #eee;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>tOS 版本测试 — 项目甘特图</h1>
+      <div class="subtitle">概念阶段 → 计划阶段 → 开发验证阶段 | 数据来源：工作簿2.xlsx</div>
+    </div>
+    <div class="date-badge">2026-06-26</div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:linear-gradient(135deg,#42a5f5,#1e88e5)"></div>概念阶段（14天）</div>
+    <div class="legend-item"><div class="legend-color" style="background:linear-gradient(135deg,#66bb6a,#43a047)"></div>计划阶段（61天）</div>
+    <div class="legend-item"><div class="legend-color" style="background:linear-gradient(135deg,#ffa726,#f57c00)"></div>开发验证阶段（161天）</div>
+    <div class="legend-item"><div class="legend-color" style="background:repeating-linear-gradient(45deg,#ce93d8,#ce93d8 6px,#ba68c8 6px,#ba68c8 12px);border:1px dashed #8e24aa"></div>计划基准线 V1.0</div>
+    <div class="legend-item"><div class="legend-milestone"></div>里程碑节点</div>
+    <div class="legend-item"><div class="legend-today"></div>今天</div>
+  </div>
+
+  <div class="gantt-wrap">
+    <div class="gantt" id="gantt">
+      <!-- Timeline + rows will be rendered by JS -->
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ====== Data ======
+const TIMELINE_START = new Date('2026-02-01');
+const TIMELINE_END = new Date('2027-02-15');
+const TODAY = new Date('2026-06-26');
+
+const MILESTONES = [
+  { key: 'concept_start', name: '概念启动', phase: 'concept' },
+  { key: 'str1', name: 'STR1', phase: 'concept' },
+  { key: 'str2', name: 'STR2', phase: 'plan' },
+  { key: 'str3', name: 'STR3', phase: 'plan' },
+  { key: 'kickoff', name: 'Kick off', phase: 'dev' },
+  { key: 'str4', name: 'STR4', phase: 'dev' },
+  { key: 'str4a', name: 'STR4A', phase: 'dev' },
+  { key: 'str5', name: 'STR5', phase: 'dev' },
+];
+
+const projects = [
+  {
+    name: '计划V1.0',
+    tag: '计划基准',
+    tagClass: 'tag-plan',
+    isPlan: true,
+    milestones: {
+      str1: '2026-03-17', str2: '2026-04-28', str3: '2026-05-22',
+      str4: '2026-07-31', str4a: '2026-10-12', str5: '2026-12-15'
+    }
+  },
+  {
+    name: 'X6765-26M+',
+    tag: '首发',
+    tagClass: 'tag-first',
+    platform: 'MTK',
+    milestones: {
+      concept_start: '2026-02-26', str1: '2026-03-17', str2: '2026-04-28',
+      str3: '2026-07-06', kickoff: '2026-09-08', str4: '2026-11-18',
+      str4a: '2026-11-06', str5: '2027-01-04'
+    }
+  },
+  {
+    name: 'X6766-Q',
+    tag: '',
+    platform: 'MTK',
+    milestones: {
+      concept_start: '2026-02-26', str1: '2026-03-17', str2: '2026-04-28',
+      str3: '2026-06-02', kickoff: '2026-07-31', str4: '2026-07-31',
+      str4a: '2026-11-19', str5: '2027-01-04'
+    }
+  },
+  {
+    name: 'CO6-Q',
+    tag: '',
+    platform: 'Q',
+    milestones: {
+      concept_start: '2026-04-29', str1: '2026-06-22', str2: '2026-06-22',
+      str3: '2026-06-29', kickoff: '2026-08-24', str4: '2026-08-24',
+      str4a: '2027-01-14', str5: '2026-12-30'
+    }
+  },
+  {
+    name: 'LK7k',
+    tag: '存量SR适配',
+    tagClass: 'tag-sr',
+    platform: 'MTK',
+    milestones: {
+      str1: '2026-03-17', str2: '2026-03-24', str3: '2026-06-03', str4: '2026-07-13'
+    },
+    milestoneLabels: {
+      str1: '工程搭建', str2: '迁移适配', str3: '迁移完成', str4: '验收完成'
+    }
+  },
+  {
+    name: 'X6878',
+    tag: '',
+    platform: 'Q',
+    milestones: {
+      str1: '2026-03-27', str2: '2026-03-24', str3: '2026-06-03', str4: '2026-07-13'
+    },
+    milestoneLabels: {
+      str1: '工程搭建', str2: '迁移适配', str3: '迁移完成', str4: '验收完成'
+    }
+  }
+];
+
+// ====== Helpers ======
+function dateToPercent(dateStr) {
+  const d = new Date(dateStr);
+  const total = TIMELINE_END - TIMELINE_START;
+  const offset = d - TIMELINE_START;
+  return (offset / total) * 100;
+}
+function daysBetween(d1, d2) {
+  return Math.round((new Date(d2) - new Date(d1)) / 86400000);
+}
+function formatDate(d) {
+  const dt = new Date(d);
+  return `${dt.getMonth()+1}/${dt.getDate()}`;
+}
+
+// ====== Render ======
+const gantt = document.getElementById('gantt');
+const tooltip = document.getElementById('tooltip');
+
+// Months header
+const months = [];
+let cur = new Date(TIMELINE_START);
+while (cur < TIMELINE_END) {
+  const y = cur.getFullYear();
+  const m = cur.getMonth();
+  const next = new Date(y, m + 1, 1);
+  const days = Math.round((Math.min(next, TIMELINE_END) - cur) / 86400000);
+  months.push({ label: `${y}.${String(m+1).padStart(2,'0')}`, days });
+  cur = next;
+}
+
+let html = '';
+
+// Timeline header
+html += '<div class="timeline-header">';
+months.forEach(m => {
+  html += `<div class="month-cell">${m.label}<div class="days">${m.days}d</div></div>`;
+});
+html += '</div>';
+
+// Phase group labels
+html += '<div class="phase-groups">';
+const phasePositions = [
+  { label: '概念阶段（14天）', startPct: dateToPercent('2026-02-26'), endPct: dateToPercent('2026-03-17') },
+  { label: '计划阶段（61天）', startPct: dateToPercent('2026-03-17'), endPct: dateToPercent('2026-05-22') },
+  { label: '开发验证阶段（161天）', startPct: dateToPercent('2026-05-22'), endPct: dateToPercent('2026-12-15') },
+];
+// Only show phase group labels as a guide line; use a single full-width container
+html += '</div>';
+
+// Today line position
+const todayPct = dateToPercent(TODAY);
+
+// Project rows
+projects.forEach((proj, idx) => {
+  html += `<div class="project-row">`;
+  html += `<div class="project-label">${proj.name}`;
+  if (proj.tag) html += ` <span class="tag ${proj.tagClass || (proj.platform === 'MTK' ? 'tag-mtk' : 'tag-q')}">${proj.tag}</span>`;
+  if (proj.platform && !proj.tag) html += ` <span class="tag ${proj.platform === 'MTK' ? 'tag-mtk' : 'tag-q'}">${proj.platform}</span>`;
+  html += `</div>`;
+  html += `<div class="timeline-bar-area" id="area-${idx}">`;
+
+  // Draw bars between consecutive milestones
+  const ms = MILESTONES;
+  for (let i = 0; i < ms.length - 1; i++) {
+    const startKey = ms[i].key;
+    const endKey = ms[i + 1].key;
+    const startDate = proj.milestones[startKey];
+    const endDate = proj.milestones[endKey];
+
+    if (!startDate || !endDate) continue;
+
+    // Handle string dates vs numeric (Excel serial)
+    if (typeof startDate === 'number' || typeof endDate === 'number') continue;
+
+    const startPct = dateToPercent(startDate);
+    const endPct = dateToPercent(endDate);
+    const width = endPct - startPct;
+    if (width <= 0) continue;
+
+    // Determine phase color
+    let barClass = 'bar-dev';
+    if (proj.isPlan) {
+      barClass = 'bar-plan-v1';
+    } else if (ms[i].phase === 'concept') {
+      barClass = 'bar-concept';
+    } else if (ms[i].phase === 'plan' && ms[i+1].phase === 'plan') {
+      barClass = 'bar-plan';
+    } else if (ms[i].phase === 'plan' && ms[i+1].phase === 'dev') {
+      barClass = 'bar-gap';
+    } else {
+      barClass = 'bar-dev';
+    }
+
+    const phaseLabel = ms[i].phase === 'concept' ? '概念阶段' :
+                       ms[i].phase === 'plan' ? '计划阶段' : '开发验证';
+    const days = daysBetween(startDate, endDate);
+
+    html += `<div class="bar ${barClass}"
+      style="left:${startPct}%; width:${width}%"
+      data-tooltip="${ms[i].name} → ${ms[i+1].name}<br>${phaseLabel} | ${days}天<br>${startDate} ~ ${endDate}"
+    >${days > 20 ? ms[i].name + '→' + ms[i+1].name : ''}</div>`;
+  }
+
+  // Draw milestone markers
+  ms.forEach(m => {
+    const date = proj.milestones[m.key];
+    if (!date || typeof date === 'number') return;
+
+    const pct = dateToPercent(date);
+    const label = proj.milestoneLabels && proj.milestoneLabels[m.key] ? proj.milestoneLabels[m.key] : m.name;
+
+    let msClass = 'milestone-dev';
+    if (m.phase === 'concept') msClass = 'milestone-concept';
+    else if (m.phase === 'plan') msClass = 'milestone-plan';
+
+    html += `<div class="milestone ${msClass}"
+      style="left:${pct}%"
+      data-tooltip="${label}<br>${proj.name} | ${date}"
+    ></div>`;
+  });
+
+  // Today line (only on first row, but we'll add to all for continuity)
+  if (idx === 0) {
+    html += `<div class="today-line" style="left:${todayPct}%"></div>`;
+  }
+
+  html += `</div></div>`;
+});
+
+gantt.innerHTML = html;
+
+// ====== Tooltip ======
+document.addEventListener('mousemove', (e) => {
+  const target = e.target;
+  if (target && target.dataset && target.dataset.tooltip) {
+    tooltip.innerHTML = target.dataset.tooltip.replace(/<br>/g, '<br>');
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 12) + 'px';
+    tooltip.style.top = (e.clientY - 30) + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+// ====== Stats ======
+const stats = document.getElementById('stats');
+
+// Calculate stats
+function projectDuration(proj) {
+  const dates = Object.values(proj.milestones).filter(d => typeof d === 'string');
+  if (dates.length < 2) return 0;
+  dates.sort();
+  return daysBetween(dates[0], dates[dates.length - 1]);
+}
+
+function projectProgress(proj) {
+  const dates = Object.entries(proj.milestones).filter(([k,v]) => typeof v === 'string');
+  if (dates.length === 0) return 0;
+  const completed = dates.filter(([k,v]) => new Date(v) <= TODAY).length;
+  return Math.round((completed / dates.length) * 100);
+}
+
+const totalProjects = projects.filter(p => !p.isPlan).length;
+const completedMilestones = projects.filter(p => !p.isPlan).reduce((sum, p) => {
+  return sum + Object.values(p.milestones).filter(d => typeof d === 'string' && new Date(d) <= TODAY).length;
+}, 0);
+const totalMilestones = projects.filter(p => !p.isPlan).reduce((sum, p) => {
+  return sum + Object.values(p.milestones).filter(d => typeof d === 'string').length;
+}, 0);
+const avgProgress = Math.round((completedMilestones / totalMilestones) * 100);
+
+// Find next milestone
+let nextMs = null;
+let nextMsDate = null;
+projects.filter(p => !p.isPlan).forEach(p => {
+  Object.entries(p.milestones).forEach(([k, d]) => {
+    if (typeof d === 'string' && new Date(d) > TODAY) {
+      if (!nextMsDate || new Date(d) < new Date(nextMsDate)) {
+        nextMsDate = d;
+        const msInfo = MILESTONES.find(m => m.key === k);
+        nextMs = `${p.name} - ${msInfo ? msInfo.name : k}`;
+      }
+    }
+  });
+});
+const daysToNext = nextMsDate ? daysBetween(TODAY, nextMsDate) : '-';
+
+stats.innerHTML = `
+  <div class="stat-card">
+    <div class="label">项目总数</div>
+    <div class="value">${totalProjects}<span class="unit">个</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">里程碑总数</div>
+    <div class="value">${totalMilestones}<span class="unit">个</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">已完成里程碑</div>
+    <div class="value">${completedMilestones}<span class="unit">个</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">整体进度</div>
+    <div class="value">${avgProgress}<span class="unit">%</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">最近里程碑</div>
+    <div class="value" style="font-size:13px">${nextMs || '-'}<br><span style="font-size:11px;color:#999">${nextMsDate || ''}（${daysToNext}天后）</span></div>
+  </div>
+`;
+</script>
+</body>
+</html>

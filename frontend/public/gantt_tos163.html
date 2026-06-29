@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tOS16.3 开发计划</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Microsoft YaHei','PingFang SC',Arial,sans-serif;background:#f0f2f5;color:#222;min-height:100vh}
+.page-header{background:#1a237e;color:#fff;padding:18px 32px 14px;display:flex;align-items:center;justify-content:space-between}
+.page-header h1{font-size:20px;font-weight:600;letter-spacing:1px}
+.page-header .meta{font-size:12px;opacity:.75;text-align:right;line-height:1.8}
+.tab-bar{background:#fff;border-bottom:2px solid #e0e3ec;display:flex;padding:0 32px;gap:0}
+.tab-btn{padding:12px 28px;font-size:13px;font-weight:500;color:#666;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;user-select:none;background:none;border-top:none;border-left:none;border-right:none}
+.tab-btn:hover{color:#1a237e;background:#f5f6fb}
+.tab-btn.active{color:#1a237e;border-bottom-color:#1a237e;font-weight:600}
+.tab-content{display:none;padding:24px 32px}
+.tab-content.active{display:block}
+
+/* ── GANTT ── */
+.gantt-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 8px rgba(0,0,0,.08);overflow:hidden}
+.legend{display:flex;flex-wrap:wrap;gap:12px;padding:14px 20px;border-bottom:1px solid #eef0f5}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#555}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.filters{padding:10px 20px;border-bottom:1px solid #eef0f5;display:flex;gap:8px;flex-wrap:wrap}
+.filter-btn{padding:4px 14px;border-radius:20px;border:1px solid #d0d4df;background:#fff;font-size:12px;cursor:pointer;color:#555;transition:all .15s}
+.filter-btn:hover{border-color:#1a237e;color:#1a237e}
+.filter-btn.active{background:#1a237e;color:#fff;border-color:#1a237e}
+.gantt-inner{overflow-x:auto;overflow-y:auto;max-height:62vh}
+table.gantt{width:100%;border-collapse:collapse;min-width:900px}
+table.gantt th,table.gantt td{border-bottom:1px solid #eef0f5;padding:0}
+table.gantt thead tr:first-child th{background:#f5f6fb;padding:8px 0;font-size:11px;color:#888;font-weight:500;text-align:center;position:sticky;top:0;z-index:2}
+table.gantt thead tr:first-child th.label-col{text-align:left;padding-left:14px}
+table.gantt .row-label td{background:#f5f6fb;font-weight:600;font-size:12px;padding:6px 14px;color:#444;border-top:2px solid #e0e3ec}
+table.gantt .row-label td:not(:first-child){background:#f5f6fb}
+.gantt-row td{padding:5px 0;vertical-align:middle;height:36px}
+.gantt-row td.label-col{padding:5px 14px;font-size:12px;white-space:nowrap}
+.gantt-row td.label-col .model-name{font-weight:500;color:#222}
+.gantt-row td.label-col .model-platform{font-size:11px;color:#888;margin-top:1px}
+.gantt-row td.timeline-col{position:relative;padding:0}
+.timeline-cell{position:relative;height:36px;width:100%}
+.today-line{position:absolute;top:0;bottom:0;width:2px;background:#e53935;z-index:3;opacity:.7}
+.milestone{position:absolute;top:50%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;border:2px solid #fff;z-index:2;cursor:pointer;transition:transform .1s}
+.milestone:hover{transform:translate(-50%,-50%) scale(1.4)}
+.milestone.diamond{border-radius:2px;transform:translate(-50%,-50%) rotate(45deg);width:11px;height:11px}
+.milestone.diamond:hover{transform:translate(-50%,-50%) rotate(45deg) scale(1.4)}
+.year-sep{position:absolute;top:0;bottom:0;width:2px;background:#1a237e;opacity:.15;z-index:1}
+.month-label{position:absolute;bottom:2px;font-size:10px;color:#bbb;transform:translateX(-50%);pointer-events:none}
+.bar-line{position:absolute;top:50%;height:2px;transform:translateY(-50%);opacity:.18;z-index:0}
+.tooltip{position:fixed;background:rgba(30,30,60,.9);color:#fff;font-size:12px;padding:7px 12px;border-radius:6px;pointer-events:none;z-index:999;display:none;line-height:1.7;white-space:nowrap}
+.gantt-row:nth-child(even) td{background:#fafbfd}
+.gantt-row:hover td{background:#eef2ff}
+.col-new-year{background:#e8ecf8 !important}
+
+/* ── USER VERSION TABLE ── */
+.uv-header{margin-bottom:16px}
+.uv-header h2{font-size:16px;font-weight:600;color:#1a237e;margin-bottom:4px}
+.uv-header p{font-size:12px;color:#777}
+.uv-main{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.uv-table-wrap{flex:1;min-width:420px;background:#fff;border-radius:10px;box-shadow:0 1px 8px rgba(0,0,0,.08);overflow:hidden}
+.uv-timeline-wrap{flex:2;min-width:500px;background:#fff;border-radius:10px;box-shadow:0 1px 8px rgba(0,0,0,.08);padding:20px}
+table.uv{width:100%;border-collapse:collapse}
+table.uv th{background:#f5f6fb;padding:8px 12px;font-size:11px;color:#888;font-weight:500;text-align:left;border-bottom:1px solid #eef0f5;position:sticky;top:0}
+table.uv td{padding:7px 12px;font-size:12px;border-bottom:1px solid #eef0f5;vertical-align:middle}
+table.uv tr:hover td{background:#eef2ff}
+.ver-group td{background:#f0f3fa !important;font-weight:600;font-size:12px;color:#444;padding:6px 12px;border-top:2px solid #dde2f0}
+.badge-slim{background:#FAC775;color:#633806;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.badge-full{background:#B5D4F4;color:#0C447C;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.uv-str5-date{font-weight:600}
+.uv-str5-date.slim{color:#BA7517}
+.uv-str5-date.full{color:#185FA5}
+
+/* UV Timeline */
+.uv-tl-title{font-size:13px;font-weight:600;margin-bottom:14px;color:#333}
+.uv-tl-axis{position:relative;height:32px;margin-bottom:4px}
+.uv-tl-axis-line{position:absolute;top:50%;left:0;right:0;height:1px;background:#d0d4df}
+.uv-tl-month{position:absolute;top:0;font-size:10px;color:#aaa;transform:translateX(-50%);text-align:center;line-height:1.2}
+.uv-tl-month .tick{width:1px;height:8px;background:#d0d4df;margin:0 auto 2px}
+.uv-tl-rows{display:flex;flex-direction:column;gap:3px}
+.uv-tl-row{display:flex;align-items:center;gap:8px;position:relative;height:34px}
+.uv-tl-row-label{width:120px;font-size:11px;color:#555;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;padding-right:6px}
+.uv-tl-row-bar{flex:1;position:relative;height:26px}
+.uv-tl-inner{position:absolute;left:0;right:0;top:0;bottom:0}
+.uv-tl-baseline{position:absolute;top:50%;left:0;right:0;height:1px;background:#e8eaf0}
+.uv-dot{position:absolute;top:50%;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #fff;cursor:pointer;transition:transform .1s;z-index:2}
+.uv-dot:hover{transform:translate(-50%,-50%) scale(1.5)}
+.uv-dot-label{position:absolute;top:-1px;font-size:9px;color:#888;transform:translateX(-50%);white-space:nowrap;pointer-events:none}
+.uv-ver-line{position:absolute;top:0;bottom:0;width:1.5px;z-index:1;opacity:.25}
+.uv-legend{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:11px;color:#777;align-items:center}
+.uv-legend span{display:flex;align-items:center;gap:4px}
+.uv-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>tOS16.3 整机软件开发计划</h1>
+  <div class="meta">
+    计划版本：tOS16.3<br>
+    涵盖 STR1 → STR5 全阶段
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('gantt',this)">开发里程碑甘特图</button>
+  <button class="tab-btn" onclick="switchTab('userver',this)">用户版本搭车计划</button>
+</div>
+
+<!-- =================== TAB 1: GANTT =================== -->
+<div class="tab-content active" id="tab-gantt">
+  <div class="gantt-wrap">
+    <div class="legend" id="legend"></div>
+    <div class="filters">
+      <button class="filter-btn active" onclick="filterRows('all',this)">全部</button>
+      <button class="filter-btn" onclick="filterRows('version',this)">版本计划</button>
+      <button class="filter-btn" onclick="filterRows('flagship',this)">首发机型</button>
+      <button class="filter-btn" onclick="filterRows('mid',this)">衍生机型</button>
+    </div>
+    <div class="gantt-inner">
+      <table class="gantt" id="ganttTable"></table>
+    </div>
+  </div>
+</div>
+
+<!-- =================== TAB 2: USER VERSION =================== -->
+<div class="tab-content" id="tab-userver">
+  <div class="uv-header">
+    <h2>整机软件 STR5 搭载 tOS16.3 用户版本计划</h2>
+    <p>基准里程碑：tOS16.3 STR5 预评审 2026/4/24 · 正式评审 <strong>2026/5/8</strong></p>
+  </div>
+  <div class="uv-main">
+    <div class="uv-table-wrap">
+      <table class="uv">
+        <thead>
+          <tr>
+            <th>用户版本</th>
+            <th>版本号</th>
+            <th>机型</th>
+            <th>平台</th>
+            <th style="text-align:center">类型</th>
+            <th>STR5 日期</th>
+            <th>编译时间</th>
+          </tr>
+        </thead>
+        <tbody id="uvTbody"></tbody>
+      </table>
+    </div>
+    <div class="uv-timeline-wrap">
+      <div class="uv-tl-title">各机型 STR5 时间线（2026年 4月 — 7月）</div>
+      <div id="uvTimeline"></div>
+      <div class="uv-legend">
+        <span><span class="uv-legend-dot" style="background:#378ADD"></span>Full 平台</span>
+        <span><span class="uv-legend-dot" style="background:#EF9F27"></span>Slim 平台</span>
+        <span style="display:flex;align-items:center;gap:4px">
+          <span style="width:10px;height:10px;border-radius:2px;background:#888;transform:rotate(45deg);display:inline-block;flex-shrink:0"></span>编译时间
+        </span>
+        <span style="display:flex;align-items:center;gap:4px">
+          <span class="uv-legend-dot" style="background:#888"></span>STR5 评审
+        </span>
+        <span style="font-size:10px;color:#aaa">— 编译到评审间隔</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+/* ===== SHARED ===== */
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const tooltip = document.getElementById('tooltip');
+document.addEventListener('mousemove', e => {
+  tooltip.style.left = (e.clientX + 14) + 'px';
+  tooltip.style.top  = (e.clientY - 10) + 'px';
+});
+
+/* ===== GANTT DATA ===== */
+const MILESTONES = ['STR1','STR2','STR3','STR4','STR4A','STR5'];
+const COLORS = {
+  STR1: '#1565C0', STR2: '#2E7D32', STR3: '#F57F17',
+  STR4: '#6A1B9A', STR4A: '#00838F', STR5: '#C62828'
+};
+
+const ganttRows = [
+  {
+    type: 'version', group: '版本计划 (tOS16.3)', groupId: 'version',
+    name: '实际', model: 'tOS16.3', platform: '215颗',
+    milestones: { STR1:'2025-09-12', STR2:'2025-09-28', STR3:'2025-11-13', STR4:'2025-11-27', STR4A:'2026-01-06', STR5:'2026-05-08' }
+  },
+  {
+    type: 'hardware', group: '首发机型', groupId: 'flagship',
+    name: '首发', model: 'P685L(T7250)', platform: '骁龙-Slim',
+    milestones: { STR1:'2025-10-09', STR2:'2025-11-04', STR3:null, STR4:'2025-11-28', STR4A:'2026-04-02', STR5:'2026-05-08' }
+  },
+  {
+    type: 'hardware', group: '首发机型', groupId: 'flagship',
+    name: '首发', model: 'CN6c(G200)', platform: 'MTK-Full',
+    milestones: { STR1:'2025-10-11', STR2:'2025-11-27', STR3:'2025-11-27', STR4:'2025-11-27', STR4A:'2026-03-26', STR5:'2026-05-08' }
+  },
+  {
+    type: 'hardware', group: '衍生机型', groupId: 'mid',
+    name: '衍生', model: 'S689LN(T7300) 暂停', platform: '骁龙-Full',
+    milestones: { STR1:'2025-11-20', STR2:'2026-01-03', STR3:'2026-01-03', STR4:'2026-01-03', STR4A:'2026-05-12', STR5:'2026-06-24' }
+  },
+  {
+    type: 'hardware', group: '衍生机型', groupId: 'mid',
+    name: '衍生', model: 'LK7(D7400)', platform: 'MTK-Full',
+    milestones: { STR1:'2025-11-10', STR2:'2025-12-10', STR3:'2025-12-10', STR4:'2025-12-10', STR4A:'2026-04-21', STR5:'2026-05-31' }
+  },
+  {
+    type: 'hardware', group: '衍生机型', groupId: 'mid',
+    name: '衍生', model: 'CN6(D7100)', platform: 'MTK-Full',
+    milestones: { STR1:'2025-10-28', STR2:'2025-12-08', STR3:'2025-12-08', STR4:'2025-12-08', STR4A:'2026-04-29', STR5:'2026-06-18' }
+  },
+  {
+    type: 'hardware', group: '衍生机型', groupId: 'mid',
+    name: '衍生', model: 'X6896(D7100)', platform: 'MTK-Full',
+    milestones: { STR1:'2025-11-18', STR2:'2025-12-10', STR3:null, STR4:null, STR4A:null, STR5:'2026-05-08' }
+  }
+];
+
+const G_MIN = new Date('2025-08-01');
+const G_MAX = new Date('2026-09-01');
+const G_SPAN = G_MAX - G_MIN;
+const TODAY = new Date();
+
+function gPct(ds) {
+  if (!ds) return null;
+  return ((new Date(ds) - G_MIN) / G_SPAN * 100).toFixed(3) + '%';
+}
+
+function buildGantt() {
+  const table = document.getElementById('ganttTable');
+
+  // Legend
+  const legendEl = document.getElementById('legend');
+  MILESTONES.forEach(m => {
+    legendEl.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${COLORS[m]}"></div>${m}</div>`;
+  });
+  legendEl.innerHTML += `<div class="legend-item"><div style="width:2px;height:14px;background:#e53935;border-radius:1px"></div>今日</div>`;
+
+  // Build months for header
+  const months = [];
+  let cur = new Date(G_MIN);
+  while (cur <= G_MAX) {
+    months.push(new Date(cur));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+
+  // thead
+  let thead = '<thead><tr>';
+  thead += '<th class="label-col" style="width:200px;min-width:180px">机型 / 平台</th>';
+  thead += '<th class="timeline-col">时间轴（2025 — 2026）</th>';
+  thead += '</tr></thead>';
+  table.innerHTML = thead;
+
+  // tbody
+  const tbody = document.createElement('tbody');
+
+  let lastGroup = '';
+  ganttRows.forEach((row, idx) => {
+    // Group header
+    if (row.group !== lastGroup) {
+      lastGroup = row.group;
+      const gr = document.createElement('tr');
+      gr.className = 'row-label';
+      gr.setAttribute('data-group', row.groupId);
+      gr.innerHTML = `<td colspan="2">${row.group}</td>`;
+      tbody.appendChild(gr);
+    }
+
+    const tr = document.createElement('tr');
+    tr.className = 'gantt-row';
+    tr.setAttribute('data-group', row.groupId);
+
+    // Label
+    let labelCell = `<td class="label-col">
+      <div class="model-name">${row.model}</div>
+      <div class="model-platform">${row.platform}</div>
+    </td>`;
+
+    // Timeline cell
+    let tlContent = `<div class="timeline-cell">`;
+
+    // Today line
+    const todayPct = ((TODAY - G_MIN) / G_SPAN * 100).toFixed(2);
+    if (todayPct >= 0 && todayPct <= 100) {
+      tlContent += `<div class="today-line" style="left:${todayPct}%" title="今日 ${TODAY.toISOString().slice(0,10)}"></div>`;
+    }
+
+    // Year separator (2026-01-01)
+    const jan2026 = new Date('2026-01-01');
+    const janPct = ((jan2026 - G_MIN) / G_SPAN * 100).toFixed(2);
+    tlContent += `<div class="year-sep" style="left:${janPct}%" title="2026年"></div>`;
+
+    // Month labels (only on first row)
+    if (idx === 0) {
+      months.forEach(m => {
+        const mp = ((m - G_MIN) / G_SPAN * 100).toFixed(2);
+        if (mp >= 0 && mp <= 100) {
+          const label = m.getMonth() === 0 ? `<strong>${m.getFullYear()}/${m.getMonth()+1}</strong>` : `${m.getMonth()+1}月`;
+          tlContent += `<div class="month-label" style="left:${mp}%">${label}</div>`;
+        }
+      });
+    }
+
+    // Bar line connecting milestones
+    const validDates = MILESTONES.map(m => row.milestones[m]).filter(Boolean).sort();
+    if (validDates.length >= 2) {
+      const leftPct = ((new Date(validDates[0]) - G_MIN) / G_SPAN * 100).toFixed(2);
+      const rightPct = ((new Date(validDates[validDates.length-1]) - G_MIN) / G_SPAN * 100).toFixed(2);
+      const w = (rightPct - leftPct).toFixed(2);
+      tlContent += `<div class="bar-line" style="left:${leftPct}%;width:${w}%;background:#1a237e"></div>`;
+    }
+
+    // Milestone dots
+    MILESTONES.forEach(m => {
+      const d = row.milestones[m];
+      if (!d) return;
+      const pct = ((new Date(d) - G_MIN) / G_SPAN * 100).toFixed(3);
+      const dm = new Date(d);
+      const label = `${dm.getMonth()+1}/${dm.getDate()}`;
+      tlContent += `<div class="milestone" style="left:${pct}%;background:${COLORS[m]}"
+        onmouseenter="showTip(event,'${row.model}<br>${m}：${d}')"
+        onmouseleave="hideTip()"></div>`;
+    });
+
+    tlContent += '</div>';
+
+    tr.innerHTML = labelCell + `<td class="timeline-col">${tlContent}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+}
+
+function showTip(e, html) {
+  tooltip.innerHTML = html;
+  tooltip.style.display = 'block';
+}
+function hideTip() {
+  tooltip.style.display = 'none';
+}
+
+function filterRows(groupId, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#ganttTable tr[data-group]').forEach(tr => {
+    tr.style.display = (groupId === 'all' || tr.dataset.group === groupId) ? '' : 'none';
+  });
+}
+
+buildGantt();
+
+/* ===== USER VERSION DATA ===== */
+const uvData = [
+  {ver:'用户版本1', vno:'16.3.0.110', model:'P685L',           platform:'T7250',      type:'Slim', str5:'2026-05-08', compile:'2026-04-21'},
+  {ver:'用户版本2', vno:'16.3.0.115', model:'CN6c',             platform:'G200',       type:'Full', str5:'2026-05-26', compile:'2026-05-14'},
+  {ver:'用户版本2', vno:'16.3.0.115', model:'T1103',            platform:'G100',       type:'Full', str5:'2026-05-25', compile:'2026-05-14'},
+  {ver:'用户版本2', vno:'16.3.0.115', model:'X6896',            platform:'D7100',      type:'Full', str5:'2026-05-25', compile:'2026-05-14'},
+  {ver:'用户版本2', vno:'16.3.0.115', model:'X1103',            platform:'G100',       type:'Full', str5:'2026-05-31', compile:'2026-05-14'},
+  {ver:'用户版本3', vno:'16.3.0.120', model:'X6851（大版本）', platform:'D7020',      type:'Full', str5:'2026-06-04', compile:'2026-05-26'},
+  {ver:'用户版本3', vno:'16.3.0.120', model:'X6851B（大版本）',platform:'D7020',      type:'Full', str5:'2026-06-04', compile:'2026-05-26'},
+  {ver:'用户版本3', vno:'16.3.0.120', model:'LK7',              platform:'D7400',      type:'Full', str5:'2026-06-08', compile:'2026-05-26'},
+  {ver:'用户版本3', vno:'16.3.0.120', model:'CN6',              platform:'D7100',      type:'Full', str5:'2026-06-08', compile:'2026-05-26'},
+  {ver:'用户版本3', vno:'16.3.0.120', model:'X6898',            platform:'D7100',      type:'Full', str5:'2026-06-11', compile:'2026-05-26'},
+  {ver:'用户版本4', vno:'16.3.0.125', model:'X6852（大版本）', platform:'D7020',      type:'Full', str5:'2026-06-15', compile:'2026-06-04'},
+  {ver:'用户版本4', vno:'16.3.0.125', model:'CL7（大版本）',   platform:'D7020',      type:'Full', str5:'2026-06-17', compile:'2026-06-04'},
+  {ver:'用户版本4', vno:'16.3.0.125', model:'CL7K（大版本）',  platform:'D7020',      type:'Full', str5:'2026-06-17', compile:'2026-06-04'},
+  {ver:'用户版本4', vno:'16.3.0.125', model:'T1002',            platform:'MT8786',     type:'Slim', str5:'2026-06-22', compile:'2026-06-04'},
+  {ver:'用户版本5', vno:'16.3.0.130', model:'T1002W',           platform:'MT8786',     type:'Slim', str5:'2026-07-02', compile:'2026-06-18'},
+  {ver:'用户版本5', vno:'16.3.0.130', model:'KO3(G81)',         platform:'G81',        type:'Slim', str5:'2026-07-03', compile:'2026-06-18'},
+  {ver:'用户版本5', vno:'16.3.0.130', model:'X6890',            platform:'SM7635 Pro', type:'Full', str5:'2026-07-03', compile:'2026-06-18'},
+];
+
+const UV_MIN = new Date('2026-04-15');
+const UV_MAX = new Date('2026-07-20');
+const UV_SPAN = UV_MAX - UV_MIN;
+
+function uvPct(ds) {
+  return ((new Date(ds) - UV_MIN) / UV_SPAN * 100).toFixed(2) + '%';
+}
+function uvFmt(ds) {
+  const d = new Date(ds);
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function buildUV() {
+  const tbody = document.getElementById('uvTbody');
+  let lastVer = '';
+
+  uvData.forEach(row => {
+    if (row.ver !== lastVer) {
+      lastVer = row.ver;
+      const gr = document.createElement('tr');
+      gr.className = 'ver-group';
+      gr.innerHTML = `<td colspan="7">${row.ver}（${row.vno}）</td>`;
+      tbody.appendChild(gr);
+    }
+    const badge = row.type === 'Slim'
+      ? `<span class="badge-slim">Slim</span>`
+      : `<span class="badge-full">Full</span>`;
+    const dateClass = `uv-str5-date ${row.type.toLowerCase()}`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td></td>
+      <td style="font-size:11px;color:#aaa"></td>
+      <td style="font-weight:500">${row.model}</td>
+      <td style="color:#666">${row.platform}</td>
+      <td style="text-align:center">${badge}</td>
+      <td class="${dateClass}">${uvFmt(row.str5)}</td>
+      <td style="font-size:11px;color:#999">${uvFmt(row.compile)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Timeline
+  const tlDiv = document.getElementById('uvTimeline');
+  let html = '';
+
+  // Axis
+  html += '<div class="uv-tl-axis">';
+  html += '<div class="uv-tl-axis-line"></div>';
+  const uvMonths = [];
+  let mc = new Date(UV_MIN);
+  while (mc <= UV_MAX) {
+    uvMonths.push(new Date(mc));
+    mc.setMonth(mc.getMonth() + 1);
+  }
+  uvMonths.forEach(m => {
+    const mp = ((m - UV_MIN) / UV_SPAN * 100).toFixed(2);
+    const lbl = `${m.getMonth()+1}月`;
+    html += `<div class="uv-tl-month" style="left:${mp}%"><div class="tick"></div>${lbl}</div>`;
+  });
+  html += '</div>';
+
+  // Rows
+  html += '<div class="uv-tl-rows">';
+  uvData.forEach(row => {
+    const color = row.type === 'Slim' ? '#EF9F27' : '#378ADD';
+    const compilePctVal = ((new Date(row.compile) - UV_MIN) / UV_SPAN * 100).toFixed(2);
+    const str5PctVal    = ((new Date(row.str5)    - UV_MIN) / UV_SPAN * 100).toFixed(2);
+    const compilePct = compilePctVal + '%';
+    const str5Pct    = str5PctVal + '%';
+    const barWidth   = (str5PctVal - compilePctVal).toFixed(2) + '%';
+    html += `<div class="uv-tl-row">
+      <div class="uv-tl-row-label" title="${row.model} · ${row.platform}">${row.model}</div>
+      <div class="uv-tl-row-bar">
+        <div class="uv-tl-inner">
+          <div class="uv-tl-baseline"></div>
+          <!-- 编译→STR5 连接线 -->
+          <div style="position:absolute;left:${compilePct};width:${barWidth};top:50%;height:3px;transform:translateY(-50%);background:${color};opacity:0.25;border-radius:2px;z-index:0"></div>
+          <!-- 编译时间：菱形点 + 日期标签 -->
+          <div class="uv-dot" style="left:${compilePct};width:11px;height:11px;background:${color};border-radius:2px;transform:translate(-50%,-50%) rotate(45deg)"
+               onmouseenter="showTip(event,'${row.model}<br>编译时间：${row.compile}')"
+               onmouseleave="hideTip()"></div>
+          <div class="uv-dot-label" style="left:${compilePct};color:${color};opacity:.75">${uvFmt(row.compile)}</div>
+          <!-- STR5：圆形点 + 日期标签 -->
+          <div class="uv-dot" style="left:${str5Pct};width:11px;height:11px;background:${color}"
+               onmouseenter="showTip(event,'${row.model} [${row.type}]<br>平台：${row.platform}<br>STR5：${row.str5}')"
+               onmouseleave="hideTip()"></div>
+          <div class="uv-dot-label" style="left:${str5Pct};color:${color}">${uvFmt(row.str5)}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // STR5 baseline (2026-05-08)
+  const basePct = ((new Date('2026-05-08') - UV_MIN) / UV_SPAN * 100).toFixed(2);
+  tlDiv.style.position = 'relative';
+  tlDiv.innerHTML = html;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `position:absolute;top:0;left:calc(120px + ${basePct}% * (100% - 120px) / 100);bottom:0;width:2px;background:#e53935;opacity:.5;pointer-events:none;z-index:5`;
+  overlay.title = 'tOS16.3 STR5 基准 2026-05-08';
+  tlDiv.style.position = 'relative';
+  tlDiv.appendChild(overlay);
+
+  // Today line on UV
+  const todayUvPct = ((TODAY - UV_MIN) / UV_SPAN * 100).toFixed(2);
+  if (todayUvPct >= 0 && todayUvPct <= 100) {
+    const todayLine = document.createElement('div');
+    todayLine.style.cssText = `position:absolute;top:0;left:calc(120px + ${todayUvPct}% * (100% - 120px) / 100);bottom:0;width:2px;background:#e53935;opacity:.3;pointer-events:none;z-index:5`;
+    todayLine.title = '今日';
+    tlDiv.appendChild(todayLine);
+  }
+}
+
+buildUV();
+</script>
+</body>
+</html>

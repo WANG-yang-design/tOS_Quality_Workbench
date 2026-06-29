@@ -1,0 +1,32 @@
+# ==============================
+# tOS Quality Workbench Docker Compose
+# ==============================
+
+version: '3.8'
+
+services:
+  workbench:
+    build: .
+    container_name: tos-quality-workbench
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - workbench-data:/data/.tos_quality_workbench
+    environment:
+      - FEISHU_APP_ID=${FEISHU_APP_ID}
+      - FEISHU_APP_SECRET=${FEISHU_APP_SECRET}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - VERIFY_SSL=${VERIFY_SSL:-false}
+      - DEBUG=${DEBUG:-false}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  workbench-data:
+    driver: local
